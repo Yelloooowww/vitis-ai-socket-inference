@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+
+<launch>
+    <!-- <node pkg="efficientdet_client" type="read_camera.py" name="read_camera" /> -->
+    <node pkg="efficientdet_client" type="efficientdet_client.py" name="clent" output="screen"/>
+</launch>

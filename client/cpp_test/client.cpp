@@ -82,35 +82,10 @@ cv::Mat GetImageRGB(int connectfd){
 
   outputMat = cv::Mat(Heigth, Width, CV_8UC3,bufferData).clone(); // make a copy
 
-  // // Build headers on your raw data
-  // cv::Mat channelR(Heigth, Width, CV_8UC1, bufferData);
-  // cv::Mat channelG(Heigth, Width, CV_8UC1, bufferData + Width * Heigth);
-  // cv::Mat channelB(Heigth, Width, CV_8UC1, bufferData + 2 * Width * Heigth);
-  //
-  // // Invert channels,
-  // // don't copy data, just the matrix headers
-  // std::vector<cv::Mat> channels{ channelB, channelG, channelR };
-  //
-  // // Create the output matrix
-  // cv::merge(channels, outputMat);
+
   return outputMat;
 }
-// cv::Mat GetImage(int connectfd){
-//   cv::Mat mat = cv::Mat::zeros(Heigth, Width, CV_8UC3);
-//   const int imgSize = mat.total() * mat.elemSize();
-//   uchar bufferData[imgSize*2 ];
-//   int bytes = 0;
-//   int i = 0;
-//   for (i = 0; i < imgSize; i += bytes){
-//     bytes = recv(connectfd, bufferData + i, imgSize - i, 0);
-//     if (bytes == -1){
-//       std::cout << "status == -1   errno == " << errno << "  in Socket::recv\n";
-//       exit(EXIT_FAILURE);
-//     }
-//   }
-//   mat = cv::Mat(Heigth, Width, CV_8UC3, bufferData);
-//   return mat;
-// }
+
 
 void SendImage(const cv::Mat &mat, int sockfd){
 

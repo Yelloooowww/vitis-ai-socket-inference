@@ -1,0 +1,2 @@
+- setup-file:
+    local-name: /home/argsubt/vitis-ai-socket-inference/client/catkin_ws/devel/setup.sh
