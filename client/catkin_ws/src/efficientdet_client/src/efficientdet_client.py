@@ -41,10 +41,9 @@ class EfficientDetSocketClient():
 
 		# send
 		resize_image = cv2.resize(cv_image, (640, 480), interpolation=cv2.INTER_AREA)
-		BytesData = resize_image.tostring()
-		# self.my_socket.send(BytesData)
-		for x in range(0,  3 * 640 * 480):
-			self.my_socket.send(b'\x00')
+		for i in range(0,480): #split pkg
+			byte_data = np.array(resize_image[i], dtype='<u1').tobytes()
+			self.my_socket.send(byte_data)
 		print("send")
 
 		# receive
@@ -56,11 +55,21 @@ class EfficientDetSocketClient():
 			newbuf = self.my_socket.recv(imgSize - i)
 			bufferData += newbuf
 			i += len(newbuf)
-			# print('i',i)
 		print("recv")
-
 		self.my_socket.close()
 		self.input_image = None
+
+		recv_img = []
+		for i in range(0,480):
+			tmp = []
+			for j in range(0,640):
+				tmp.append([bufferData[i*640*3 + j*3 + 0],\
+							bufferData[i*640*3 + j*3 + 1],\
+							bufferData[i*640*3 + j*3 + 2]])
+
+			recv_img.append(tmp)
+		recv_img = np.array(recv_img,dtype=np.uint8)
+		self.image_pub.publish(self.bridge.cv2_to_imgmsg(recv_img,"bgr8"))
 
 
 
