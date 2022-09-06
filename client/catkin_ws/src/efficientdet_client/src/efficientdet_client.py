@@ -18,25 +18,28 @@ class EfficientDetSocketClient():
 		self.image_pub = rospy.Publisher("EfficientDet_result", Image, queue_size=1)
 
 		self.input_image = None
+
+		connect_success = False
+		while not connect_success:
+			# socket re-connect
+			self.my_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+			try:
+				self.my_socket.connect(("192.168.0.100", 5678))
+				connect_success = True
+			except Exception as e:
+				rospy.loginfo(e)
+
 		self.timer = rospy.Timer(rospy.Duration(0.1), self.inference)
 
 
 	def inference(self,event):
-		if self.input_image==None: return
+		if self.input_image==None: return # no image
 
+		# cv_bridge
 		try:
 			cv_image = self.bridge.imgmsg_to_cv2(self.input_image, "bgr8")
 		except CvBridgeError as e:
 			print(e)
-			return
-
-		# socket re-connect
-		self.my_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		try:
-			self.my_socket.connect(("192.168.0.100", 5678))
-			connect_success = True
-		except Exception as e:
-			rospy.loginfo(e)
 			return
 
 		# send
@@ -44,38 +47,29 @@ class EfficientDetSocketClient():
 		for i in range(0,480): #split pkg
 			byte_data = np.array(resize_image[i], dtype='<u1').tobytes()
 			self.my_socket.send(byte_data)
-		print("send")
 
 		# receive
+		header_and_bytes = self.my_socket.recv(5)
+		datasize = (header_and_bytes[3]* 2**8) + header_and_bytes[4]
+		# print("datasize=",datasize)
 		bufferData = b''
-		imgSize = 3 * 640 * 480
 		bytes = 0;
 		i = 0;
-		while i < imgSize:
-			newbuf = self.my_socket.recv(imgSize - i)
+		while i < datasize:
+			newbuf = self.my_socket.recv(datasize - i)
 			bufferData += newbuf
 			i += len(newbuf)
-		print("recv")
-		self.my_socket.close()
-		self.input_image = None
+		checksum = self.my_socket.recv(1)
 
-		recv_img = []
-		for i in range(0,480):
-			tmp = []
-			for j in range(0,640):
-				tmp.append([bufferData[i*640*3 + j*3 + 0],\
-							bufferData[i*640*3 + j*3 + 1],\
-							bufferData[i*640*3 + j*3 + 2]])
-
-			recv_img.append(tmp)
-		recv_img = np.array(recv_img,dtype=np.uint8)
-		self.image_pub.publish(self.bridge.cv2_to_imgmsg(recv_img,"bgr8"))
-
-
+		for i in range( int(datasize/12) ):
+			print(i,end=' ')
+			for j,item in enumerate(['xmin','ymin','xmax','ymax','label','confidence']):
+				value = bufferData[i*12+j*2]* 2**8 + bufferData[i*12+j*2+1]
+				print(item,"=",value,end=' ')
+			print('')
 
 	def img_cb(self, msg):
 		self.input_image = msg
-
 
 	def onShutdown(self):
 		self.my_socket.close()
