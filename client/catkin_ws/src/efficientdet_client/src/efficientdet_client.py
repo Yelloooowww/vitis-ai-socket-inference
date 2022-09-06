@@ -6,13 +6,13 @@ from std_msgs.msg import String,Int32,Int16MultiArray
 import numpy as np
 import cv2  # OpenCV module
 import time
-from sensor_msgs.msg import Image
+from sensor_msgs.msg import Image, CompressedImage
 from cv_bridge import CvBridge, CvBridgeError
 class EfficientDetSocketClient():
 	def __init__(self):
 		self.bridge = CvBridge()
 
-		self.image_sub = rospy.Subscriber("image_raw", Image, self.img_cb)
+		self.image_sub = rospy.Subscriber("/image_raw/compressed", CompressedImage, self.img_cb)
 		self.image_pub = rospy.Publisher("EfficientDet_result", Image, queue_size=1)
 
 		self.input_image = None
@@ -24,7 +24,7 @@ class EfficientDetSocketClient():
 		while not connect_success:
 			self.my_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 			try:
-				self.my_socket.connect(("192.168.0.100", 5678))
+				self.my_socket.connect((rospy.get_param("~host"), 5678))
 				connect_success = True
 			except Exception as e:
 				rospy.loginfo(e)
@@ -36,6 +36,7 @@ class EfficientDetSocketClient():
 		if not self.new_data_coming: return
 
 		image_to_pub = self.resize_image
+		print()
 		for i in range( int(len(self.RecvBufferData)/12) ):
 			xmin = self.RecvBufferData[i*12+0*2]* 2**8 + self.RecvBufferData[i*12+0*2+1]
 			ymin = self.RecvBufferData[i*12+1*2]* 2**8 + self.RecvBufferData[i*12+1*2+1]
@@ -43,7 +44,7 @@ class EfficientDetSocketClient():
 			ymax = self.RecvBufferData[i*12+3*2]* 2**8 + self.RecvBufferData[i*12+3*2+1]
 			label = self.RecvBufferData[i*12+4*2]* 2**8 + self.RecvBufferData[i*12+4*2+1]
 			confidence = self.RecvBufferData[i*12+5*2]* 2**8 + self.RecvBufferData[i*12+5*2+1]
-			# print(i+1," xmin=",xmin," ymin=",ymin," xmax=",xmax," ymax=",ymax," label=",label, " confidence=",confidence)
+			print(i+1," xmin=",xmin," ymin=",ymin," xmax=",xmax," ymax=",ymax," label=",label, " confidence=",confidence)
 
 			# draw image for results
 			text = str(label) + ": {:.2f}".format(confidence/1000)
@@ -68,12 +69,9 @@ class EfficientDetSocketClient():
 	def inference(self,event):
 		if self.input_image==None: return # no image
 
-		# cv_bridge
-		try:
-			cv_image = self.bridge.imgmsg_to_cv2(self.input_image, "bgr8")
-		except CvBridgeError as e:
-			print(e)
-			return
+		# cv_bridge CompressedImage -> numpy.ndarray
+		np_arr = np.fromstring(self.input_image.data, np.uint8)
+		cv_image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
 
 		# send
 		self.resize_image = cv2.resize(cv_image, (640, 480), interpolation=cv2.INTER_AREA)
